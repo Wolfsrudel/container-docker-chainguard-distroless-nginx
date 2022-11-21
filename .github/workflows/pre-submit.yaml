@@ -13,9 +13,9 @@ jobs:
         nginx-version: [1.22.1, 1.23.2]
         include:
           - nginx-version: 1.22.1
-            sha256: 9ebb333a9e82b952acd3e2b4aeb1d4ff6406f72491bab6cd9fe69f0dea737f31
+            melange-config: melange-stable.yaml
           - nginx-version: 1.23.2
-            sha256: a80cc272d3d72aaee70aa8b517b4862a635c0256790434dbfc4d618a999b0b46
+            melange-config: melange-mainline.yaml
 
     # https://docs.github.com/en/actions/reference/authentication-in-a-workflow
     permissions:
@@ -33,15 +33,13 @@ jobs:
         echo "date=$(date -u +%Y%m%d)" >> $GITHUB_OUTPUT
       shell: bash
 
-
     - uses: sigstore/cosign-installer@main
     - uses: chainguard-dev/actions/melange-build@main
       with:
         sign-with-temporary-key: true
-        config: melange.yaml
+        config: ${{ matrix.melange-config }}
         empty-workspace: true
         archs: x86_64,aarch64,armv7
-        template: "{\"Version\": \"${{ matrix.nginx-version }}\", \"SHA\": \"${{ matrix.sha256 }}\"}"
 
     - uses: chainguard-images/actions/apko-build@main
       with:
