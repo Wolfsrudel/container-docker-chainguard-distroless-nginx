@@ -42,9 +42,13 @@ jobs:
         nginx-version: [1.22.1, 1.23.2]
         include:
           - nginx-version: 1.22.1
-            sha256: 9ebb333a9e82b952acd3e2b4aeb1d4ff6406f72491bab6cd9fe69f0dea737f31
+            melange-config: melange-stable.yaml
+            target-tag: stable
+            additional-tags: 1.22.1-r0,1.22.1,1.22
           - nginx-version: 1.23.2
-            sha256: a80cc272d3d72aaee70aa8b517b4862a635c0256790434dbfc4d618a999b0b46
+            melange-config: melange-mainline.yaml
+            target-tag: latest
+            additional-tags: mainline,1.23.2-r0,1.23.2,1.23,1
 
     # https://docs.github.com/en/actions/reference/authentication-in-a-workflow
     permissions:
@@ -62,19 +66,19 @@ jobs:
     - uses: chainguard-dev/actions/melange-build@main
       with:
         sign-with-temporary-key: true
-        config: melange.yaml
+        config: ${{ matrix.melange-config }}
         empty-workspace: true
         archs: x86_64,aarch64,armv7
-        template: "{\"Version\": \"${{ matrix.nginx-version }}\", \"SHA\": \"${{ matrix.sha256 }}\"}"
 
     - id: apko
       uses: chainguard-images/actions/apko-snapshot@main
       with:
         config: apko.yaml
         base-tag: ghcr.io/${{ github.repository }}
+        target-tag: ${{ matrix.target-tag }}
         keyring-append: /github/workspace/melange.rsa.pub
         archs: x86_64,aarch64,armv7
-        additional-tags: ${{ matrix.nginx-version }}
+        additional-tags: ${{ matrix.additional-tags }}
         image_refs: apko.images
 
     - name: Emit Image Refs output
@@ -97,13 +101,6 @@ jobs:
       run: |
         IMAGE_NAME=$(docker load < output.tar | grep "Loaded image" | sed 's/^Loaded image: //')
         IMAGE_NAME=$IMAGE_NAME ./test.sh
-
-    - name: Additional tags
-      uses: chainguard-images/actions/tag@main
-      with:
-        distroless_image: ghcr.io/${{ github.repository }}:${{ matrix.nginx-version }}
-        docker_image_tag: ${{ matrix.nginx-version }}
-        docker_image: "nginx"
 
     - if: ${{ failure() }}
       uses: rtCamp/action-slack-notify@v2.2.0
@@ -227,7 +224,7 @@ jobs:
           name: ${{ env.REPO_NAME }}
           location: cgr.dev/chainguard/${{ env.REPO_NAME }}
           description: "A minimal nginx base image rebuilt every night from source."
-          exclude-tags: 1.20.2-r0,1.20.2,1.20,1.23.0
+          exclude-tags: 1.20.2,1.23.0,1.20,1.23.1,1.22.0,1.22.0-r0,1.23.1-r0
           push-to-repo: true
 
       # Post to slack when things fail.
